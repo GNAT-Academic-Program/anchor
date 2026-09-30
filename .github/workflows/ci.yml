@@ -1,0 +1,70 @@
+# Builds the seed and runs it in Renode on Linux and on Windows, so that a
+# change that breaks one platform shows up here before it hits a teammate.
+
+name: ci
+
+on: [push, pull_request]
+
+jobs:
+  seed:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      RENODE_VERSION: "1.16.0"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: alire-project/setup-alire@v5
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build bootloader and demo application
+        run: alr -n build
+
+      - name: Pack the good image, make the hostile ones
+        run: |
+          python tools/pack.py
+          python tools/attack.py
+
+      - name: Install Renode (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          curl -sSL -o renode.tar.gz "https://github.com/renode/renode/releases/download/v${RENODE_VERSION}/renode-${RENODE_VERSION}.linux-portable-dotnet.tar.gz"
+          mkdir renode_portable
+          tar xzf renode.tar.gz -C renode_portable --strip-components=1
+          echo "RENODE_DIR=$PWD/renode_portable" >> "$GITHUB_ENV"
+          echo "RENODE_TEST=$PWD/renode_portable/renode-test" >> "$GITHUB_ENV"
+
+      - name: Install Renode (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          curl -sSL -o renode.zip "https://github.com/renode/renode/releases/download/v${RENODE_VERSION}/renode-${RENODE_VERSION}.windows-portable-dotnet.zip"
+          unzip -q renode.zip
+          echo "RENODE_DIR=$PWD/renode_${RENODE_VERSION}-dotnet_portable" >> "$GITHUB_ENV"
+          echo "RENODE_TEST=$PWD/renode_${RENODE_VERSION}-dotnet_portable/renode-test.bat" >> "$GITHUB_ENV"
+
+      - name: Install the test requirements
+        run: python -m pip install -r "$RENODE_DIR/tests/requirements.txt"
+
+      # Must always pass: the good image boots, garbage does not.
+      - name: Baseline tests
+        run: '"$RENODE_TEST" tests/gauntlet.robot --include baseline -r tests/results'
+
+      # The scoreboard. Allowed to fail while attacks still get through.
+      # Once the gauntlet is green, delete `continue-on-error` to keep it green.
+      - name: Gauntlet
+        continue-on-error: true
+        run: '"$RENODE_TEST" tests/gauntlet.robot -r tests/results'
+
+      - name: Prove the core
+        if: runner.os == 'Linux'
+        run: alr -n exec -- gnatprove -P prove.gpr

@@ -1,0 +1,14 @@
+/alire/
+/config/
+/obj/
+/bin/
+/build/
+/gnatprove/
+__pycache__/
+*.pyc
+/tests/results/
+log.html
+report.html
+robot_output.xml
+output.xml
+*.orig

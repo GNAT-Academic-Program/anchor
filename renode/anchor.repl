@@ -1,0 +1,16 @@
+// The Anchor board: Renode's STM32F746 model plus the Discovery's green LED.
+//
+// Things worth knowing about this model:
+//   - `flash` is plain memory, 2 MiB at 0x08000000. Renode does not model
+//     the STM32F7 flash controller, so there is no erase/program sequence
+//     and an erased byte reads 0x00, not 0xFF as on the real chip.
+//   - `usart1` is the console (src/board/console.adb).
+//   - The file this one builds on downloads a register description (SVD)
+//     the first time it is used, so the very first run needs the network.
+
+using "platforms/cpus/stm32f746.repl"
+
+UserLED: Miscellaneous.LED @ gpioPortI
+
+gpioPortI:
+    1 -> UserLED@0

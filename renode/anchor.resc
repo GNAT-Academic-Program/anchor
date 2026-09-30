@@ -1,0 +1,31 @@
+:name: Anchor
+:description: Anchor bootloader on an emulated STM32F746, with signed images in the flash slots.
+
+# Usual way to run this: python3 tools/run.py   (see the README)
+# Directly:              renode renode/anchor.resc
+#
+# $ORIGIN is the folder this script is in, so it works from any directory.
+# The three variables below can be set before including the script, to try
+# other files; that is what tools/run.py does.
+
+$boot   ?= $ORIGIN/../bin/anchor
+$slot_a ?= $ORIGIN/../build/slot_a.img
+$slot_b ?= $ORIGIN/empty_slot.bin
+
+using sysbus
+mach create "anchor"
+machine LoadPlatformDescription $ORIGIN/anchor.repl
+
+# The bootloader is an ELF file: Renode places it at its link address
+# (0x08000000) and starts the CPU from its vector table.
+sysbus LoadELF $boot
+
+# Images are raw bytes written at the base of a slot, as a flash
+# programmer would do. By default slot B gets a few zero bytes: empty.
+sysbus LoadBinary $slot_a 0x08040000
+sysbus LoadBinary $slot_b 0x08080000
+
+# Print everything the UART says in the Renode log.
+showAnalyzer usart1 Antmicro.Renode.Analyzers.LoggingUartAnalyzer
+
+start

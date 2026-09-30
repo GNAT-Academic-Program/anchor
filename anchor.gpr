@@ -1,0 +1,55 @@
+--  The bootloader.
+--
+--  Source directories mirror the architecture (see ARCHITECTURE.md):
+--    src/core    pure decision logic, SPARK, no hardware
+--    src/crypto  thin wrapper over SPARKNaCl
+--    src/board   serial console (shared with the demo app)
+--    src/boot    hardware side: read slots, jump, main
+
+with "config/anchor_config.gpr";
+with "runtime_build.gpr";
+with "stm32f746g_disco.gpr";
+with "sparknacl.gpr";
+
+project Anchor is
+
+   for Target use Runtime_Build'Target;
+   for Runtime ("Ada") use Runtime_Build'Runtime ("Ada");
+
+   for Source_Dirs use ("src/core", "src/crypto", "src/board", "src/boot");
+   for Object_Dir use "obj/anchor/" & Anchor_Config.Build_Profile;
+   for Create_Missing_Dirs use "True";
+   for Exec_Dir use "bin";
+   for Main use ("anchor_main.adb");
+
+   package Builder is
+      for Executable ("anchor_main.adb") use "anchor";
+   end Builder;
+
+   package Compiler is
+      for Default_Switches ("Ada") use Anchor_Config.Ada_Compiler_Switches;
+   end Compiler;
+
+   package Binder is
+      for Switches ("Ada") use ("-Es");
+   end Binder;
+
+   package Linker is
+      --  The bootloader owns the first 128 KiB of flash. Our memory-ROM.ld
+      --  replaces the runtime's default one. See ld/README.md.
+      for Default_Switches ("Ada") use
+        ("-L", Project'Project_Dir & "ld/bootloader",
+         "-L", Project'Project_Dir & "ld")
+        & Runtime_Build.Linker_Switches
+        & ("-Wl,--gc-sections",
+           "-Wl,-Map=" & Project'Project_Dir & "bin/anchor.map");
+   end Linker;
+
+   package Prove is
+      --  Analyse our code only, not the runtime and the drivers.
+      --  See prove.gpr for how to run GNATprove.
+      for Proof_Switches ("Ada") use
+        ("--no-subprojects", "--level=1", "--report=all");
+   end Prove;
+
+end Anchor;

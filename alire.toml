@@ -1,0 +1,28 @@
+name = "anchor"
+description = "SPARK secure boot and firmware recovery for the STM32F746 (Renode)"
+version = "0.1.0-dev"
+licenses = "BSD-3-Clause"
+
+authors = ["GNAT Academic Program"]
+maintainers = ["Olivier Henley <olivier.henley@gmail.com>"]
+maintainers-logins = ["ohenley"]
+website = "https://github.com/GNAT-Academic-Program/anchor"
+tags = ["embedded", "stm32", "spark", "security", "bootloader"]
+
+# `alr build` builds both: the bootloader and the demo application.
+project-files = ["anchor.gpr", "apps/hello.gpr"]
+
+[[depends-on]]
+stm32f746g_disco = "*"     # GAP board support crate, built on GHAL (pinned below)
+sparknacl = "^4.0.1"       # SHA-256 and Ed25519, written and proved in SPARK
+gnat_arm_elf = "^15"       # cross compiler
+gnatprove = "^15.1.0"      # SPARK prover
+
+# The GAP crates are not in the Alire community index, so we point at GitHub.
+# stm32f746g_disco brings its own pins for the runtime and the GHAL crates.
+[[pins]]
+stm32f746g_disco = { url = "https://github.com/GNAT-Academic-Program/stm32f746g_disco.git", branch = "main" }
+
+[gpr-set-externals]
+# Bare-metal build of SPARKNaCl: leaves out its Text_IO debug helpers.
+SPARKNACL_RUNTIME_MODE = "zfp"

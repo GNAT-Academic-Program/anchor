@@ -1,0 +1,48 @@
+--  Demo application: the "firmware" the bootloader protects.
+--
+--  An image is linked for ONE slot (it executes in place, it is never
+--  copied). Build for the other slot with:
+--
+--     alr build -- -XANCHOR_SLOT=b
+
+with "../config/anchor_config.gpr";
+with "runtime_build.gpr";
+with "stm32f746g_disco.gpr";
+
+project Hello is
+
+   type Slot_Kind is ("a", "b");
+   Slot : Slot_Kind := external ("ANCHOR_SLOT", "a");
+
+   for Target use Runtime_Build'Target;
+   for Runtime ("Ada") use Runtime_Build'Runtime ("Ada");
+
+   for Source_Dirs use ("hello/src", "../src/board");
+   for Object_Dir use "../obj/hello_" & Slot & "/" & Anchor_Config.Build_Profile;
+   for Create_Missing_Dirs use "True";
+   for Exec_Dir use "../bin";
+   for Main use ("hello.adb");
+
+   package Builder is
+      for Executable ("hello.adb") use "hello_" & Slot;
+   end Builder;
+
+   package Compiler is
+      for Default_Switches ("Ada") use Anchor_Config.Ada_Compiler_Switches;
+   end Compiler;
+
+   package Binder is
+      for Switches ("Ada") use ("-Es");
+   end Binder;
+
+   package Linker is
+      --  Our memory-ROM.ld replaces the runtime's default one.
+      --  See ld/README.md.
+      for Default_Switches ("Ada") use
+        ("-L", Project'Project_Dir & "../ld/slot_" & Slot,
+         "-L", Project'Project_Dir & "../ld")
+        & Runtime_Build.Linker_Switches
+        & ("-Wl,--gc-sections");
+   end Linker;
+
+end Hello;

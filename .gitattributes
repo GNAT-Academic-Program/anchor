@@ -1,0 +1,6 @@
+# Same line endings on every OS, so Renode scripts, Robot tests and linker
+# scripts are not mangled by a Windows checkout.
+* text=auto eol=lf
+
+*.bin binary
+*.img binary

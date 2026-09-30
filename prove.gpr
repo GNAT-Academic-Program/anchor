@@ -1,0 +1,36 @@
+--  Used only to run GNATprove:
+--
+--     alr exec -- gnatprove -P prove.gpr
+--
+--  It covers the part of the bootloader that is meant to be proved:
+--  src/core (decisions) and the spec of src/crypto. No board, no
+--  hardware, no tasking runtime: that is what keeps it provable.
+--
+--  The bootloader itself is built by anchor.gpr, from the same sources.
+--
+--  Why a separate project: GNATprove cannot yet go through the runtime
+--  crate. When light-tasking-stm32f746 has the RUNTIME_EXTERNALLY_BUILT
+--  switch, the whole bootloader (main program and the call to Jump
+--  included) is proved with:
+--
+--     alr exec -- gnatprove -P anchor.gpr -XRUNTIME_EXTERNALLY_BUILT=True
+--
+--  and this file can be deleted.
+
+with "sparknacl.gpr";
+
+project Prove is
+
+   for Target use "arm-eabi";
+   for Runtime ("Ada") use "light-cortex-m7f";
+
+   for Source_Dirs use ("src/core", "src/crypto");
+   for Object_Dir use "obj/prove";
+   for Create_Missing_Dirs use "True";
+
+   package Prove is
+      for Proof_Switches ("Ada") use
+        ("--no-subprojects", "--level=1", "--report=all");
+   end Prove;
+
+end Prove;
